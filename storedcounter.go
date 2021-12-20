@@ -1,9 +1,10 @@
 package storedcounter
 
 import (
+	"context"
 	"encoding/binary"
-	"golang.org/x/xerrors"
 	"sync"
+	"golang.org/x/xerrors"
 
 	"github.com/ipfs/go-datastore"
 )
@@ -23,17 +24,18 @@ func New(ds datastore.Datastore, name datastore.Key) *StoredCounter {
 // Next returns the next counter value, updating it on disk in the process
 // if no counter is present, it creates one and returns a 0 value
 func (sc *StoredCounter) Next() (uint64, error) {
+	ctx := context.TODO()
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 
-	has, err := sc.ds.Has(sc.name)
+	has, err := sc.ds.Has(ctx, sc.name)
 	if err != nil {
 		return 0, err
 	}
 
 	var next uint64 = 0
 	if has {
-		curBytes, err := sc.ds.Get(sc.name)
+		curBytes, err := sc.ds.Get(ctx, sc.name)
 		if err != nil {
 			return 0, err
 		}
@@ -43,15 +45,16 @@ func (sc *StoredCounter) Next() (uint64, error) {
 	buf := make([]byte, binary.MaxVarintLen64)
 	size := binary.PutUvarint(buf, next)
 
-	return next, sc.ds.Put(sc.name, buf[:size])
+	return next, sc.ds.Put(ctx, sc.name, buf[:size])
 }
 
 // Get Added in 2021-12-15, Get current sector number
 func (sc *StoredCounter) Get() (uint64, error) {
+	ctx := context.TODO()
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 
-	has, err := sc.ds.Has(sc.name)
+	has, err := sc.ds.Has(ctx, sc.name)
 	if err != nil {
 		return 0, err
 	}
@@ -59,7 +62,7 @@ func (sc *StoredCounter) Get() (uint64, error) {
 	if !has {
 		return 0, nil
 	}
-	curBytes, err := sc.ds.Get(sc.name)
+	curBytes, err := sc.ds.Get(ctx, sc.name)
 	if err != nil {
 		return 0, err
 	}
@@ -69,16 +72,17 @@ func (sc *StoredCounter) Get() (uint64, error) {
 
 // Set Added in 2021-12-15, Set the next sector number
 func (sc *StoredCounter) Set(sectorNum uint64) error {
+	ctx := context.TODO()
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 
-	has, err := sc.ds.Has(sc.name)
+	has, err := sc.ds.Has(ctx, sc.name)
 	if err != nil {
 		return err
 	}
 
 	if has {
-		curBytes, err := sc.ds.Get(sc.name)
+		curBytes, err := sc.ds.Get(ctx, sc.name)
 		if err != nil {
 			return err
 		}
@@ -90,5 +94,5 @@ func (sc *StoredCounter) Set(sectorNum uint64) error {
 
 	buf := make([]byte, binary.MaxVarintLen64)
 	size := binary.PutUvarint(buf, sectorNum)
-	return sc.ds.Put(sc.name, buf[:size])
+	return sc.ds.Put(ctx, sc.name, buf[:size])
 }
